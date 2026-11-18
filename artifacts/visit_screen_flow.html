@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSA Visit Screen Flow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#F3F3F7; --fg:#171A21; --fg-2:#5D6472; --fg-3:#8A90A0; --rule:#C9CCD6;
+    --line:#3A3F4B; --label-bg:#F3F3F7; --panel:#FFFFFF; --panel-line:#E1E3EB; --chip:#E9EAF1;
+    --conn-bg:#D9D5BD; --conn-fg:#3D3A2C; --gap-fg:#B4302F; --gap-bg:#FBE9E9;
+    --p-page:#EEF0F4; --p-ink:#111418; --p-muted:#6B7280; --p-card:#FFFFFF; --p-frame:#DADDE5;
+    --p-accent:#4F32E7; --p-cta:#E4622B; --p-track:#D8DBE2; --p-hair:#EDEFF2; --p-radio:#C3C7CF;
+    --p-dark:#1E2128; --p-key:#FFFFFF; --p-keybg:#D9DCE3; --p-ok:#2FA36B;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15171D; --fg:#E8EAF0; --fg-2:#A3A9B8; --fg-3:#737A8A; --rule:#3A3F4B;
+      --line:#B6BCCB; --label-bg:#15171D; --panel:#1C1F27; --panel-line:#2A2E39; --chip:#262A35;
+      --conn-bg:#4A4736; --conn-fg:#EAE6CF; --gap-fg:#F08A88; --gap-bg:#3A2323;
+      --p-page:#1B1E25; --p-ink:#E9EBEF; --p-muted:#9AA1AC; --p-card:#252932; --p-frame:#33384A;
+      --p-accent:#8B74FF; --p-cta:#F0713C; --p-track:#33384A; --p-hair:#2F343F; --p-radio:#4A505B;
+      --p-dark:#0E1014; --p-key:#2E333E; --p-keybg:#1F232B; --p-ok:#4CC088;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15171D; --fg:#E8EAF0; --fg-2:#A3A9B8; --fg-3:#737A8A; --rule:#3A3F4B;
+    --line:#B6BCCB; --label-bg:#15171D; --panel:#1C1F27; --panel-line:#2A2E39; --chip:#262A35;
+    --conn-bg:#4A4736; --conn-fg:#EAE6CF; --gap-fg:#F08A88; --gap-bg:#3A2323;
+    --p-page:#1B1E25; --p-ink:#E9EBEF; --p-muted:#9AA1AC; --p-card:#252932; --p-frame:#33384A;
+    --p-accent:#8B74FF; --p-cta:#F0713C; --p-track:#33384A; --p-hair:#2F343F; --p-radio:#4A505B;
+    --p-dark:#0E1014; --p-key:#2E333E; --p-keybg:#1F232B; --p-ok:#4CC088;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{ margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 "DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    display:flex; flex-direction:column; padding:0 16px; }
+
+  .top{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; padding:14px 4px 10px; }
+  .top h1{ margin:0; font-size:17px; font-weight:700; letter-spacing:-.01em; }
+  .top p{ margin:0; color:var(--fg-2); font-size:13px; }
+  .zoom{ margin-left:auto; display:flex; align-items:center; gap:6px; }
+  .zoom button{ font:13px/1 "DM Sans",sans-serif; background:var(--panel); color:var(--fg); border:1px solid var(--panel-line); border-radius:7px; padding:6px 10px; cursor:pointer; }
+  .zoom button:hover{ border-color:var(--fg-3); }
+  .zoom .pct{ font:12px ui-monospace,Menlo,monospace; color:var(--fg-2); min-width:42px; text-align:center; }
+  .legend{ display:flex; flex-wrap:wrap; gap:6px 16px; color:var(--fg-2); font-size:12.5px; padding:0 4px 10px; }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ display:inline-block; width:14px; height:14px; border-radius:50%; background:var(--conn-bg); border:1px solid var(--conn-fg); }
+  .legend i.g{ border:1.5px dashed var(--gap-fg); background:var(--gap-bg); border-radius:3px; }
+  .legend i.l{ width:22px; height:0; border-top:1.5px solid var(--line); border-radius:0; background:none; }
+
+  .viewport{ flex:1; min-height:0; overflow:auto; border:1px solid var(--panel-line); border-radius:12px; background:var(--bg); cursor:grab; margin-bottom:16px; }
+  .viewport.drag{ cursor:grabbing; }
+  .canvas{ position:relative; transform-origin:0 0; width:3200px; height:8400px; }
+  .canvas svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .canvas svg path{ fill:none; stroke:var(--line); stroke-width:1.4; }
+  .canvas svg .lbl{ font:600 10.5px "DM Sans",sans-serif; fill:var(--fg-2); }
+  .canvas svg .lblbg{ fill:var(--label-bg); }
+
+  .sec{ position:absolute; font-weight:700; font-size:13.5px; letter-spacing:-.005em; padding-bottom:6px; border-bottom:1.5px solid var(--rule); color:var(--fg); }
+  .sec small{ font-weight:500; color:var(--fg-3); margin-left:8px; font-size:12px; }
+
+  /* ---- mini phone ---- */
+  .ph{ position:absolute; width:176px; height:330px; background:var(--p-page); border:1px solid var(--p-frame); border-radius:16px; overflow:hidden;
+    font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif; color:var(--p-ink); display:flex; flex-direction:column; box-shadow:0 1px 3px rgba(20,24,40,.06); }
+  .ph .st{ display:flex; justify-content:space-between; padding:5px 9px 0; font-size:7px; font-weight:500; }
+  .ph .bar{ display:grid; grid-template-columns:12px 1fr 12px; align-items:center; gap:0; padding:6px 9px 8px; }
+  .ph .bar .bk{ color:var(--p-accent); font-size:11px; line-height:1; }
+  .ph .bar .cl{ color:var(--p-ink); font-size:10px; justify-self:end; line-height:1; }
+  .ph .tr{ width:60%; height:3px; border-radius:2px; background:var(--p-track); justify-self:center; overflow:hidden; }
+  .ph .tr b{ display:block; height:100%; background:var(--p-accent); border-radius:2px; }
+  .ph .ttl{ margin:0 10px 8px; font-size:11.5px; line-height:1.2; font-weight:700; letter-spacing:-.01em; }
+  .ph .sub{ margin:-4px 10px 8px; font-size:7.5px; line-height:1.3; color:var(--p-muted); }
+  .ph .body{ flex:1; padding:0 6px; display:flex; flex-direction:column; min-height:0; }
+  .ph .list{ background:var(--p-card); border-radius:8px; }
+  .ph .opt{ display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 8px; border-bottom:1px solid var(--p-hair); font-size:8px; line-height:1.2; }
+  .ph .opt:last-child{ border-bottom:0; }
+  .ph .opt .s{ display:block; font-size:6.5px; color:var(--p-muted); margin-top:1px; }
+  .ph .rd{ width:9px; height:9px; border-radius:50%; border:1px solid var(--p-radio); flex:none; }
+  .ph .opt.sel .rd{ border:3px solid var(--p-accent); }
+  .ph .ck{ width:9px; height:9px; border-radius:2px; border:1px solid var(--p-radio); flex:none; }
+  .ph .opt.sel .ck{ background:var(--p-accent); border-color:var(--p-accent); }
+  .ph .fld{ background:var(--p-card); border-radius:7px; padding:5px 8px 4px; margin-bottom:5px; }
+  .ph .fld .l{ font-size:6.5px; color:var(--p-muted); }
+  .ph .fld .v{ font-size:8.5px; color:var(--p-muted); border-bottom:1px solid var(--p-accent); padding-bottom:2px; }
+  .ph .fld .v.filled{ color:var(--p-ink); }
+  .ph .cta{ margin:auto 6px 5px; padding:7px; border-radius:7px; background:var(--p-cta); color:#fff; text-align:center; font-size:8px; font-weight:700; }
+  .ph .cta.dim{ opacity:.45; }
+  .ph .nav{ display:flex; justify-content:space-around; padding:2px 0 5px; font-size:6px; color:var(--p-muted); }
+  .ph .kb{ background:var(--p-keybg); padding:4px 3px 3px; display:flex; flex-direction:column; gap:3px; }
+  .ph .kb div{ display:flex; justify-content:center; gap:2px; }
+  .ph .kb i{ display:block; width:13px; height:12px; background:var(--p-key); border-radius:2px; }
+  .ph .kb div:nth-child(3) i:first-child, .ph .kb div:nth-child(3) i:last-child{ width:20px; }
+  .ph .kb div:last-child i{ width:60px; }
+  .ph .hero{ margin:0 6px 8px; height:84px; border-radius:9px; background:var(--p-dark); display:flex; align-items:center; justify-content:center; }
+  .ph .hero .ic{ width:34px; height:34px; border-radius:50%; background:var(--p-cta); box-shadow:0 0 0 6px rgba(228,98,43,.25); }
+  .ph .hero .ic.ok{ background:var(--p-ok); box-shadow:0 0 0 6px rgba(47,163,107,.25); }
+  .ph .hero .ic.ok::after{ content:''; display:block; width:14px; height:8px; border-left:2.5px solid #fff; border-bottom:2.5px solid #fff; transform:translate(10px,10px) rotate(-45deg); }
+  .ph .hero .ic.ph2{ background:var(--p-accent); box-shadow:0 0 0 6px rgba(79,50,231,.25); }
+  .ph .lines{ margin:0 10px; font-size:7.5px; line-height:1.35; color:var(--p-muted); }
+  .ph .lines div{ display:flex; gap:5px; margin-bottom:3px; }
+  .ph .lines div::before{ content:''; width:6px; height:6px; border-radius:50%; background:var(--p-accent); flex:none; margin-top:2px; }
+  .ph.end .ttl{ text-align:center; margin-top:2px; }
+  .ph.darkcard, .ph.dialog{ background:var(--p-dark); }
+  .ph.darkcard .st, .ph.darkcard .bar .cl, .ph.dialog .st, .ph.dialog .bar .cl{ color:#fff; }
+  .ph .dhero{ flex:none; height:110px; display:flex; align-items:center; justify-content:center; position:relative; }
+  .ph .person{ position:relative; width:64px; height:70px; }
+  .ph .person .hd{ position:absolute; left:22px; top:0; width:38px; height:38px; border-radius:50%; background:linear-gradient(160deg,#F4F4F6,#B9BCC4); }
+  .ph .person .bd{ position:absolute; left:14px; top:36px; width:54px; height:34px; border-radius:16px 16px 6px 6px; background:linear-gradient(160deg,#E9EAEE,#A9ADB6); }
+  .ph .person .ok{ position:absolute; left:0; top:22px; width:30px; height:30px; border-radius:50%; background:#2FC15C; box-shadow:0 0 0 3px rgba(47,193,92,.35); }
+  .ph .person .ok::after{ content:''; position:absolute; left:8px; top:6px; width:12px; height:7px; border-left:3px solid #fff; border-bottom:3px solid #fff; transform:rotate(-45deg); }
+  .ph .cards{ position:relative; width:76px; height:64px; }
+  .ph .cards i{ position:absolute; left:0; width:76px; height:28px; border-radius:6px; background:linear-gradient(160deg,#E4E5EA,#9EA2AC); }
+  .ph .cards i:first-child{ top:0; } .ph .cards i:last-child{ top:34px; }
+  .ph .cards i::before{ content:''; position:absolute; left:5px; top:5px; width:18px; height:18px; border-radius:4px; background:var(--p-cta); }
+  .ph .cards i::after{ content:''; position:absolute; left:32px; top:9px; width:34px; height:3px; background:#fff; border-radius:2px; box-shadow:0 6px 0 #fff; }
+  .ph .sec2{ text-align:center; font-size:7px; font-weight:500; margin:0 6px 4px; color:var(--p-ink); }
+  .ph .bag{ position:relative; width:60px; height:50px; margin-top:10px; border-radius:8px; background:linear-gradient(160deg,#E4E5EA,#9EA2AC); }
+  .ph .bag i{ position:absolute; left:18px; top:-10px; width:24px; height:14px; border:4px solid #B9BCC4; border-bottom:0; border-radius:8px 8px 0 0; }
+  .ph .bag::after{ content:''; position:absolute; left:26px; top:20px; width:8px; height:8px; border-radius:2px; background:var(--p-cta); }
+  .ph .card{ background:var(--p-card); border-radius:14px 14px 0 0; flex:1; padding:12px 8px 6px; display:flex; flex-direction:column; text-align:center; }
+  .ph .card .ttl{ margin:0 4px 6px; font-size:13px; text-align:center; }
+  .ph .card p{ margin:0 6px 6px; font-size:7.5px; line-height:1.35; color:var(--p-muted); }
+  .ph .card p b{ color:var(--p-ink); font-weight:500; }
+  .ph .card .li{ display:flex; gap:6px; text-align:left; font-size:7.5px; line-height:1.3; color:var(--p-ink); margin:0 6px 5px; }
+  .ph .card .li::before{ content:''; width:9px; height:9px; border-radius:2px; border:1.2px solid var(--p-muted); flex:none; margin-top:1px; }
+  .ph .card .row{ margin:4px 6px 0; padding:6px 8px; border:1px solid var(--p-hair); border-radius:7px; font-size:7.5px; text-align:left; display:flex; justify-content:space-between; color:var(--p-ink); }
+  .ph .card .cta{ margin:auto 0 0; }
+  .ph.dialog .dim{ position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .ph.dialog .sheet{ position:absolute; left:8px; right:8px; bottom:0; top:120px; background:var(--p-card); border-radius:16px 16px 0 0; padding:14px 10px 8px; display:flex; flex-direction:column; text-align:center; }
+  .ph.dialog .sheet .x{ position:absolute; right:10px; top:8px; font-size:9px; color:var(--p-muted); }
+  .ph.dialog .warn{ width:40px; height:40px; margin:6px auto 10px; border-radius:50%; background:linear-gradient(160deg,#F4F4F6,#C3C6CE); position:relative; }
+  .ph.dialog .warn::after{ content:'!'; position:absolute; right:-6px; bottom:-4px; width:16px; height:16px; border-radius:4px; background:var(--p-cta); color:#fff; font:700 10px/16px Roboto,sans-serif; }
+  .ph.dialog .sheet .ttl{ font-size:12px; text-align:center; margin:0 0 6px; }
+  .ph.dialog .sheet p{ margin:0 4px; font-size:7.5px; line-height:1.35; color:var(--p-muted); }
+  .ph.dialog .sheet .cta{ margin:auto 0 0; }
+  .ph .kb.num div{ gap:3px; } .ph .kb.num i{ width:34px; height:14px; } .ph .kb.num div i:last-child{ background:var(--p-keybg); border:1px solid var(--p-key); }
+  .ph .kb.num div:last-child i{ width:34px; } .ph .kb.num div:last-child i:last-child{ background:#2D6BE4; border:0; }
+  .ph .fld .v.plc{ color:var(--p-muted); border-bottom-color:var(--p-hair); }
+  .ph .bar.noprog .tr{ visibility:hidden; }
+  .ph.end .lines div::before{ background:var(--p-ok); }
+  .ph .lines.num div::before{ display:none; }
+  .ph .lines.num div b{ flex:none; width:11px; height:11px; border-radius:50%; border:1.2px solid var(--p-ink); color:var(--p-ink); font:700 7px/11px Roboto,sans-serif; text-align:center; }
+  .ph .hero .ic.target{ background:none; border:5px solid #C9CBD1; box-shadow:0 0 0 5px var(--p-dark), 0 0 0 9px #9EA2AC; position:relative; }
+  .ph .hero .ic.target::after{ content:''; position:absolute; left:6px; top:6px; width:12px; height:12px; border-radius:50%; background:var(--p-cta); }
+  .tag{ position:absolute; text-align:center; font:8.5px ui-monospace,Menlo,monospace; color:var(--fg-3); }
+
+  .conn{ position:absolute; width:36px; height:36px; border-radius:50%; background:var(--conn-bg); color:var(--conn-fg); border:1px solid var(--conn-fg);
+    display:flex; align-items:center; justify-content:center; font:700 15px "DM Sans",sans-serif; }
+  .conn.entry{ width:40px; height:40px; }
+  .gap{ position:absolute; border:1.5px dashed var(--gap-fg); background:var(--gap-bg); color:var(--gap-fg); border-radius:7px; padding:5px 9px; font-size:10.5px; font-weight:600; line-height:1.3; max-width:190px; }
+  .chip{ position:absolute; height:22px; padding:0 10px; border-radius:11px; background:var(--conn-bg); color:var(--conn-fg); border:1px solid var(--conn-fg); font:700 11.5px/20px "DM Sans",sans-serif; white-space:nowrap; }
+  .chip.soft{ background:var(--chip); color:var(--fg-2); border-color:var(--panel-line); font-weight:600; }
+  .dcard{ position:absolute; width:176px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:8px 9px 7px; font:8.5px/1.3 "DM Sans",sans-serif; color:var(--fg); }
+  .dcard h4{ margin:0 0 5px; font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--fg-3); }
+  .dcard table{ border-collapse:collapse; width:100%; }
+  .dcard td{ padding:2px 0; border-top:1px solid var(--panel-line); vertical-align:top; }
+  .dcard td:last-child{ text-align:right; white-space:nowrap; color:var(--fg-2); font-variant-numeric:tabular-nums; padding-left:6px; }
+  .dcard tr:first-child td{ border-top:0; }
+  .dcard .src{ display:block; font-size:7px; color:var(--fg-3); }
+  .dcard p{ margin:6px 0 0; font-size:7.5px; color:var(--fg-2); line-height:1.3; }
+  .note{ position:absolute; font-size:12px; color:var(--fg-2); line-height:1.4; max-width:400px; }
+  .note b{ color:var(--fg); }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>DSA visit — screen flow</h1>
+  <p>Точная копия доски: один связный поток от «Time to pitch»; A, B, C и G развёрнуты в экраны на своём месте; D убрана — «Other» идёт в «Open Empresa account?». Раскладка — дерево: каждая ветка в своей полосе, линии не пересекаются.</p>
+  <div class="zoom"><button data-z="out" aria-label="Zoom out">−</button><span class="pct" id="pct">100%</span><button data-z="in" aria-label="Zoom in">+</button><button data-z="fit">Fit</button><button data-z="reset">100%</button></div>
+</div>
+<div class="legend">
+  <span><i class="l"></i>переход, подпись — ответ</span>
+  <span><i></i>бежевая метка над экраном — где на доске стоял коннектор</span>
+  <span><i class="g"></i>на доске не определено</span>
+  <span>под экраном — question_tag (серым — рабочее имя)</span>
+</div>
+
+<div class="viewport" id="vp"><div class="canvas" id="cv"><svg id="svg"></svg></div></div>
+
+<script>
+(function(){
+  const W=176, H=330;
+  const OPTS_BANKS = ['BBVA','Mercado Pago','Santander','Banorte','Banamex','HSBC'];
+  const REASONS = ['Uses another bank','Business is not registered','Lacks the product they need','Bad experience with Plata','No branches nearby','Has too many accounts','Other'];
+
+  const COL = 266, ROW_GAP = 84, GAP_H = 40;
+  const C = i => 40 + COL*i;
+
+  // ---- screen templates ----
+  const T = {
+    pitch:{type:'info',title:'Time to pitch',lines:['Pitch Plata Empresa','Handle the objections','Log the outcome'],cta:'Continue',hero:'ph2'},
+    talked:{type:'choice',title:'Have you talked with the decision-maker?',opts:[{l:'Yes'},{l:'No'}],tag:'dsa_met_owner'},
+    entity:{type:'choice',title:'Entity type',opts:[{l:'Persona Fisica con actividad empresarial'},{l:'Persona Morales'},{l:'Other',s:'Off-the-books business'}],tag:'dsa_entity_type'},
+    open:{type:'choice',title:'Open Empresa account?',opts:[{l:'Yes, start now'},{l:'Client will open account later'},{l:'No'}],tag:'dsa_open_empresa_account'},
+    docs:{type:'choice',title:'Does the decision-maker have the documents now?',opts:[{l:'Yes'},{l:'No'}],tag:'dsa_docs_ready',draft:true},
+    sendA:{type:'form',noback:true,title:'Send application link to the client',fields:[['Name','Ana',true],['Phone number','',true]],kb:'qwerty',cta:'Send link',tag:'application \u00b7 send link'},
+    sendB:{type:'form',noback:true,title:'Send application link to the client',fields:[['Name','Pedro Garcia Torres'],['','+52 13 3444 5555']],kb:'num',cta:'Send link',tag:'application \u00b7 send link (filled)'},
+    linkA:{type:'darkcard',icon:'person',title:'Link sent',paras:['Wait until client receives the link sent to +52 22 2222 2222','<b>Resend in 30 sec</b>'],cta:'Link received',tag:'application \u00b7 link sent'},
+    linkB:{type:'darkcard',icon:'person',title:'Link sent',paras:['Wait until client receives the link sent to +52 22 2222 2222','<b>Resend</b>'],cta:'Link received',tag:'application \u00b7 link sent (resend)'},
+    application:{type:'darkcard',icon:'cards',title:'Application',items:['Assist the client in completing the application','Please note: the bonus will be granted once the client schedules a meeting'],row:'Instruction to support the client',cta:'Finish meeting',tag:'application \u00b7 assist'},
+    endmeet:{type:'dialog',title:'End meeting?',text:'Do not end it while you\u2019re still with the client. Only end it when you leave.',cta:'Finish meeting',tag:'application \u00b7 end meeting'},
+    contactD:{type:'form',title:'Contact person',fields:[['Name','Anna Maria',true],['Phone number','',true]],kb:'qwerty',tag:'dsa_contact_person'},
+    doneD:{type:'end',title:'Done!',num:true,icon:'target',lines:['Make sure every question was answered','Wish the client a nice day!'],cta:'Finish meeting'},
+    appContact:{type:'form',title:'Contact person',sub:'Who signs the application',fields:[['Name','María López'],['Phone','+52 55 1234 5678']],kb:true,tag:'application · contact'},
+    appDone:{type:'end',title:'Done!',lines:['Application started','Client continues in Plata app'],cta:'Finish meeting'},
+    request:{type:'info',title:'Request the decision-maker’s contact and name',lines:['Who makes the decision','Phone number','When they are at the location'],cta:'Continue',hero:'ph2'},
+    dmContact:{type:'form',title:'Write down the name and contact',fields:[['Name','Name of the decision-maker',true],['Phone number','',true]],kb:'qwerty',tag:'dsa_dm_contact_info'},
+    got:{type:'choice',title:'Has the contact been received?',opts:[{l:'Yes'},{l:'No'}],tag:'dsa_dm_contact'},
+    contact:{type:'form',title:'Contact person',sub:'Write down the name and contact',fields:[['Name','María López'],['Phone','+52 55 1234 5678']],kb:true,tag:'dsa_contact_person'},
+    call:{type:'info',title:'Call the decision-maker',lines:['Call now, from the location','Say who gave the contact','Ask for 10 minutes today'],cta:'Continue',hero:'ph2'},
+    who:{type:'choice',title:'Did you reach the decision-maker?',opts:[{l:'Yes, talked to the decision-maker'},{l:'No',s:'Nobody or someone else answered'}],tag:'dsa_call_result'},
+    dmmeet:{type:'choice',title:'Is the decision-maker up for the meeting?',opts:[{l:'Yes'},{l:'No'},{l:'Later'}],tag:'dsa_dm_meeting'},
+    opp:{type:'choice',title:'Could you give me an opportunity to meet the decision-maker?',opts:[{l:'Yes',s:'A meeting, or the decision-maker will be in at a set time'},{l:'No'}],tag:'dsa_meeting_opportunity'},
+    ended:{type:'end',title:'Contact is ended',lines:['No decision-maker, no contact','Visit is logged as no result'],cta:'Finish meeting',fail:true},
+    nextVisit:{type:'form',title:'Set the date of the next visit',sub:'When will the decision-maker be in?',fields:[['Date','19.09.2026'],['Time','11:00'],['Comment','Ask for Juan, he is in mornings']],kb:'qwerty',tag:'dsa_next_visit_date',draft:true},
+    nextVisitDone:{type:'end',title:'The next visit has been set',lines:['Visit is in your follow-ups','Visit is logged'],cta:'Finish meeting'},
+    recall:{type:'form',title:'Set the date of recall',fields:[['Date','22.09.2026'],['Time','11:00']],kb:true,tag:'dsa_recall_date',draft:true},
+    nextset:{type:'end',title:'The next contact has been set',lines:['Recall is in your follow-ups','Visit is logged'],cta:'Finish meeting'},
+    followup:{type:'form',title:'Plan follow-up',sub:'When does the decision-maker want you back',fields:[['Date','24.09.2026'],['Time','10:30'],['Comment','Bring the documents list']],kb:true,tag:'dsa_plan_followup'},
+    fuq:{type:'choice',title:'Follow-up needed?',sub:'Anything to finish with the client later?',opts:[{l:'Yes'},{l:'No'}],tag:'dsa_followup_needed',draft:true},
+    followupG:{type:'form',title:'Plan follow-up',sub:'When should you get back to the client?',fields:[['Date','24.09.2026'],['Time','10:30'],['Comment','Documents for KYB']],kb:'qwerty',tag:'dsa_followup_date'},
+    fuDone:{type:'end',title:'Follow-up has been set',lines:['Application started','Follow-up is in your list'],cta:'Finish meeting'},
+    docsFollowup:{type:'form',title:'Plan follow-up',sub:'When will the client upload the documents?',fields:[['Date','24.09.2026'],['Time','10:30'],['Comment','CSF and Acta Constitutiva pending']],kb:'qwerty',tag:'dsa_docs_followup',draft:true},
+    docsLaterDone:{type:'end',title:'Client will complete the application later',lines:['Link sent, documents pending','Follow-up is scheduled'],cta:'Finish meeting'},
+    laterDone:{type:'end',title:'Client will open account later',lines:['Follow-up is scheduled','Visit is logged'],cta:'Finish meeting'},
+    appt:{type:'form',title:'Set the date and time of appointment',fields:[['Date','19.09.2026'],['Time','16:00']],kb:true,tag:'dsa_appointment'},
+    apptDone:{type:'end',title:'Appointment has been set',lines:['Come back and pitch the decision-maker','Visit is logged'],cta:'Finish meeting'},
+    rr:{type:'choice',title:'Why the client doesn’t want to open Empresa?',opts:REASONS.map(l=>({l})),tag:'dsa_rejection_reason'},
+    logIntro:{type:'darkcard',icon:'bag',title:'Log your visit details',paras:['Before leaving, please record a few details about this visit. This helps us avoid contacting the merchant again unnecessarily.'],cta:'Continue',tag:'visit log',shift:2},
+    rfc:{type:'form',title:'Company RFC',fields:[['','Optional',true]],kb:'num',sec:'Continue without RFC',tag:'company_rfc',shift:2},
+    contactLog:{type:'form',title:'Contact person',sub:'Optional — a phone to come back to',fields:[['Name','',true],['','+52']],kb:'qwerty',sec:'Continue without contact',tag:'contact_person',shift:2},
+    website:{type:'form',title:'Company website',fields:[['','Optional',true]],kb:'qwerty',sec:'The company doesn\u2019t have a website',tag:'company_website',shift:2},
+    doneLog:{type:'end',title:'Done!',num:true,icon:'target',lines:['Make sure every question was answered','Wish the client a nice day!'],cta:'Finish meeting',shift:2},
+    log:{type:'end',title:'Log your visit details',lines:['Outcome: client rejected','Reason + clarifying answer saved'],cta:'Finish meeting'},
+    cbank:{type:'choice',title:'Client’s bank or payment service',opts:OPTS_BANKS.map(b=>({l:b})),sel:1,tag:'dsa_client_bank'},
+    bprod:{type:'choice',title:'What product do they have with that bank?',opts:[{l:'Cuenta empresarial'},{l:'l\u00ednea de cr\u00e9dito empresarial'},{l:'Terminal Punto de Venta'},{l:'Tarjeta de cr\u00e9dito empresarial'},{l:'Ventas en l\u00ednea'},{l:'Other'}],tag:'dsa_bank_product'},
+    regdate:{type:'choice',title:'When will the business be registered?',opts:[{l:'Already in process'},{l:'Within a month'},{l:'Within 3 months'},{l:'No plans to register'}],tag:'dsa_registration_plan',draft:true},
+    missing:{type:'choice',title:'Which product is missing?',opts:[{l:'POS terminal'},{l:'Credit line'},{l:'Payroll dispersion'},{l:'Business credit card'},{l:'Online payments'},{l:'FX / international payments'},{l:'Other'}],tag:'dsa_missing_product'},
+    missingOther:{type:'form',title:'Which product?',fields:[['Product','Write what the client needs',true]],kb:'qwerty',tag:'dsa_missing_product_other',draft:true},
+    badexp:{type:'choice',title:'What has happened?',opts:[{l:'Application was rejected'},{l:'Account was blocked'},{l:'Card or terminal issues'},{l:'Support did not help'},{l:'Fees or conditions'},{l:'Other'}],tag:'dsa_bad_experience_what'},
+    badexpOther:{type:'form',title:'What exactly?',fields:[['Describe the case','Write what the client said',true]],kb:'qwerty',tag:'dsa_bad_experience_other',draft:true},
+    cbankm:{type:'multi',title:'Client’s banks',sub:'Select all that apply',opts:OPTS_BANKS.map(b=>({l:b})),sels:[0,1],tag:'dsa_client_bank_multi'},
+    other:{type:'form',title:'Describe the reason',fields:[['Reason','Write what the client said']],kb:true,tag:'dsa_rejection_other'},
+  };
+
+  // ---- instances: id -> template (+extras). Tree children in top-to-bottom order = option order on the board.
+  const N = {}; const NODES = []; const CH = {}; const E = [];
+  const add = (id,tpl,extra)=>{ const n=Object.assign({id},T[tpl]||{},extra||{}); NODES.push(n); N[id]=n; return n; };
+  const gap = (id,text)=> add(id,null,{type:'gap',text});
+  const edge = (f,t,o,l)=>{ E.push({f,t,o,l}); (CH[f]=CH[f]||[]); if(!CH[f].includes(t)) CH[f].push(t); };
+
+  // A · rejection reasons, expanded in place (suffix distinguishes the two copies)
+  function A(sfx, from, o, l){
+    const r='rr'+sfx; add(r,'rr',{chip:'A \u00b7 Don\u2019t open'}); edge(from,r,o,l);
+    add('cbank'+sfx,'cbank'); add('bprod'+sfx,'bprod'); edge(r,'cbank'+sfx,0); edge('cbank'+sfx,'bprod'+sfx);
+    [['regdate',1],['missing',2],['badexp',3]].forEach(([t,i])=>{ add(t+sfx,t); edge(r,t+sfx,i); });
+    add('missingOther'+sfx,'missingOther'); edge('missing'+sfx,'missingOther'+sfx,6);
+    add('badexpOther'+sfx,'badexpOther'); edge('badexp'+sfx,'badexpOther'+sfx,5);
+    const L='logIntro'+sfx; add(L,'logIntro'); edge(r,L,4); edge(r,L,5);
+    add('contactLog'+sfx,'contactLog'); edge(L,'contactLog'+sfx); add('doneLog'+sfx,'doneLog'); edge('contactLog'+sfx,'doneLog'+sfx);
+    add('other'+sfx,'other'); edge(r,'other'+sfx,6);
+    ['bprod','regdate','missingOther','badexpOther','other'].forEach(t=> E.push({f:t+sfx,t:L}));
+    E.push({f:'missing'+sfx,t:L,o:[0,5]}); E.push({f:'badexp'+sfx,t:L,o:[0,4]});   // all listed products → tail; «Other» → text screen first
+  }
+  function B(sfx, from, o, l){ add('contactB'+sfx,'contact',{chip:'B · Open later'}); add('followupB'+sfx,'followup'); add('laterDone'+sfx,'laterDone');
+    edge(from,'contactB'+sfx,o,l); edge('contactB'+sfx,'followupB'+sfx); edge('followupB'+sfx,'laterDone'+sfx); }
+  function Cc(sfx, from, o, l){ add('appt'+sfx,'appt',{chip:'C · Appointment'}); add('apptDone'+sfx,'apptDone');
+    edge(from,'appt'+sfx,o,l); edge('appt'+sfx,'apptDone'+sfx); }
+
+  add('pitch','pitch'); add('talked','talked'); edge('pitch','talked');
+  // yes → entity → open (PFAE, PM, Other = D all land on the same screen)
+  add('entity','entity'); edge('talked','entity',0,'yes');
+  add('open','open'); edge('entity','open',0,'PFAE'); edge('entity','open',1,'PM'); edge('entity','open',2,'other');
+  // yes, start now → application flow (existing) → universal follow-up question → End meeting
+  add('sendA','sendA',{chip:'G · Start application'}); edge('open','sendA',0,'yes');
+  add('sendB','sendB'); edge('sendA','sendB'); add('linkA','linkA'); edge('sendB','linkA'); add('linkB','linkB'); edge('linkA','linkB');
+  add('application','application'); edge('linkB','application');
+  add('fuq','fuq'); edge('application','fuq');
+  add('followupG','followupG'); edge('fuq','followupG',0,'yes'); add('fuDone','fuDone'); edge('followupG','fuDone');
+  add('endmeet','endmeet'); edge('fuq','endmeet',1,'no');
+  B('1','open',1,'later');
+  A('1','open',2,'no');
+  // no → request → got
+  add('request','request'); edge('talked','request',1,'no');
+  add('got','got'); edge('request','got');
+  add('dmContact','dmContact'); edge('got','dmContact',0,'yes');
+  add('call','call'); edge('dmContact','call');
+  add('who','who'); edge('call','who');
+  add('recall','recall'); edge('who','recall',1,'no_answer');
+  add('nextset','nextset'); edge('recall','nextset');
+  add('entity2','entity',{sub:'By phone: \u00bfEs persona f\u00edsica o moral?'}); edge('who','entity2',0,'took_phone');
+  add('dmmeet','dmmeet'); edge('entity2','dmmeet');
+  Cc('2','dmmeet',0,'yes');
+  A('2','dmmeet',1,'no');
+  B('2','dmmeet',2,'later');
+  add('opp','opp'); edge('got','opp',1,'no');
+  Cc('1','opp',0,'yes');
+  add('ended','ended'); edge('opp','ended',1,'no');
+
+  // ---- tidy tree layout: x by depth, y by leaf order ----
+  let cursor = 60, maxDepth = 0;
+  function layout(id, depth){
+    const n = N[id]; n.depth = depth; maxDepth = Math.max(maxDepth, depth); n.h = n.type==='gap' ? GAP_H : H;
+    const kids = CH[id]||[];
+    if(!kids.length){ n.cy = cursor + n.h/2; cursor += n.h + ROW_GAP; }
+    else { kids.forEach(k=>layout(k, depth+1)); n.cy = (N[kids[0]].cy + N[kids[kids.length-1]].cy)/2;
+      // a parent centred on a short subtree must not hang below it: reserve its own footprint (+tag line)
+      cursor = Math.max(cursor, n.cy + n.h/2 + 20 + ROW_GAP); }
+    n.x = C(depth + (n.shift||0)); n.y = n.cy - n.h/2;
+  }
+  layout('pitch', 0);
+  { const minY=Math.min(...NODES.map(n=>n.y)); if(minY<70){ const d=70-minY; NODES.forEach(n=>{ n.y+=d; n.cy+=d; }); cursor+=d; } }
+  const CANVAS_W = Math.max(...NODES.map(n=>n.x+W)) + 60, CANVAS_H = cursor + 40;
+
+  const NOTES = [];
+  const SECTIONS = [];
+
+  const esc = s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const cv = document.getElementById('cv'), svg = document.getElementById('svg'), vp = document.getElementById('vp');
+
+  function chrome(n,prog){ return `<div class="st"><span>8:22</span><span>\u25BC\u25E2\u258E</span></div><div class="bar ${n.noback?'noprog':''}"><span class="bk">${n.noback?'':'\u2190'}</span><span class="tr"><b style="width:${prog}%"></b></span><span class="cl">\u2715</span></div>`; }
+  function kb(){ return `<div class="kb"><div>${'<i></i>'.repeat(10)}</div><div>${'<i></i>'.repeat(9)}</div><div>${'<i></i>'.repeat(9)}</div><div><i></i></div></div>`; }
+  function phone(n){
+    const prog = n.type==='end'?100: Math.min(90, 12 + (n.depth||0)*8);
+    let inner='';
+    if(n.type==='choice'||n.type==='multi'){
+      inner = chrome(n,prog)+`<div class="ttl">${esc(n.title)}</div>${n.sub?`<div class="sub">${esc(n.sub)}</div>`:''}<div class="body"><div class="list">`+
+        n.opts.map((o,i)=>{ const sel = n.type==='multi' ? (n.sels||[]).includes(i) : n.sel===i;
+          return `<div class="opt ${sel?'sel':''}" data-i="${i}"><span>${esc(o.l)}${o.s?`<span class="s">${esc(o.s)}</span>`:''}</span><span class="${n.type==='multi'?'ck':'rd'}"></span></div>`; }).join('')+
+        `</div><div class="cta ${n.sel===undefined && !n.sels ?'dim':''}">Continue</div></div><div class="nav"><span>■</span><span>●</span><span>◀</span></div>`;
+    } else if(n.type==='form'){
+      inner = chrome(n,prog)+`<div class="ttl">${esc(n.title)}</div>${n.sub?`<div class="sub">${esc(n.sub)}</div>`:''}<div class="body">`+
+        n.fields.map((f,i)=>`<div class="fld">${f[0]?`<div class="l">${esc(f[0])}</div>`:''}<div class="v ${f[2]?'plc':(i===0||n.noback?'filled':'')}">${esc(f[1])||'&nbsp;'}</div></div>`).join('')+
+        `<div class="cta">${esc(n.cta||'Continue')}</div>${n.sec?`<div class="sec2">${esc(n.sec)}</div>`:''}</div>${n.kb?kb(n.kb):''}`;
+    } else if(n.type==='darkcard'){
+      inner = chrome(n,prog)+`<div class="dhero">${n.icon==='person'?'<div class="person"><span class="hd"></span><span class="bd"></span><span class="ok"></span></div>':n.icon==='bag'?'<div class="bag"><i></i></div>':'<div class="cards"><i></i><i></i></div>'}</div>`+
+        `<div class="card"><div class="ttl">${esc(n.title)}</div>${(n.paras||[]).map(t=>`<p>${t}</p>`).join('')}${(n.items||[]).map(t=>`<div class="li">${esc(t)}</div>`).join('')}${n.row?`<div class="row"><span>${esc(n.row)}</span><span>\u203A</span></div>`:''}<div class="cta">${esc(n.cta)}</div></div><div class="nav" style="background:var(--p-card)"><span>\u25A0</span><span>\u25CF</span><span>\u25C0</span></div>`;
+    } else if(n.type==='dialog'){
+      inner = chrome(n,prog)+`<div class="dhero"><div class="cards"><i></i><i></i></div></div><div class="dim"></div>`+
+        `<div class="sheet"><span class="x">\u2715</span><div class="warn"></div><div class="ttl">${esc(n.title)}</div><p>${esc(n.text)}</p><div class="cta">${esc(n.cta)}</div></div>`;
+    } else if(n.type==='info'){
+      inner = chrome(n,prog)+`<div class="hero"><div class="ic ${n.hero||''}"></div></div><div class="ttl">${esc(n.title)}</div><div class="lines">${n.lines.map(l=>`<div>${esc(l)}</div>`).join('')}</div><div class="body"><div class="cta">${esc(n.cta)}</div></div><div class="nav"><span>■</span><span>●</span><span>◀</span></div>`;
+    } else if(n.type==='end'){
+      inner = `<div class="st"><span>8:22</span><span>\u25BC\u25E2\u258E</span></div><div class="bar"><span></span><span></span><span class="cl">\u2715</span></div><div class="hero" style="height:96px"><div class="ic ${n.icon==='target'?'target':(n.fail?'':'ok')}"></div></div><div class="ttl">${esc(n.title)}</div><div class="lines ${n.num?'num':''}">${n.lines.map((l,i)=>`<div>${n.num?`<b>${i+1}</b>`:''}${esc(l)}</div>`).join('')}</div><div class="body"><div class="cta">${esc(n.cta)}</div></div><div class="nav"><span>\u25A0</span><span>\u25CF</span><span>\u25C0</span></div>`;
+    }
+    const tag = n.tag ? `<div class="tag" style="left:${n.x}px;top:${n.y+H+4}px;width:${W}px;color:${n.draft?'var(--fg-3)':'var(--fg-2)'}">${esc(n.tag)}${n.draft?' (new)':''}</div>` : '';
+    return `<div class="ph ${n.type}" id="n_${n.id}" style="left:${n.x}px;top:${n.y}px">${inner}</div>${tag}`;
+  }
+
+  let html = '';
+  NODES.forEach(n=>{
+    if(n.chip) html += `<div class="chip ${n.soft?'soft':''}" style="left:${n.x}px;top:${n.y-28}px">${esc(n.chip)}</div>`;
+    if(n.type==='conn') html += `<div class="conn ${n.entry?'entry':''}" id="n_${n.id}" style="left:${n.x}px;top:${n.y}px">${n.letter}</div>`;
+    else if(n.type==='gap') html += `<div class="gap" id="n_${n.id}" style="left:${n.x}px;top:${n.y}px">${esc(n.text)}</div>`;
+    else html += phone(n); });
+  html += NOTES.map(t=>`<div class="note" style="left:${t.x}px;top:${t.y}px">${t.html}</div>`).join('');
+  cv.style.width=CANVAS_W+'px'; cv.style.height=CANVAS_H+'px';
+  cv.insertAdjacentHTML('beforeend', html);
+  cv.appendChild(svg);
+
+  // ---- edges ----
+  let scale = 1;
+  function rect(el){ const r=el.getBoundingClientRect(), c=cv.getBoundingClientRect(); return {x:(r.left-c.left)/scale, y:(r.top-c.top)/scale, w:r.width/scale, h:r.height/scale}; }
+  function draw(){
+    const parts = ['<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--line)" stroke="none"/></marker></defs>'];
+    const bySrc={}, byTgt={};
+    E.forEach(e=>{ (bySrc[e.f]=bySrc[e.f]||[]).push(e); (byTgt[e.t]=byTgt[e.t]||[]).push(e); });
+    for(const e of E){
+      const fe=document.getElementById('n_'+e.f), te=document.getElementById('n_'+e.t); if(!fe||!te){ e.skip=true; continue; }
+      const fr=rect(fe), tr=rect(te);
+      e.x1=fr.x+fr.w; e.y1=fr.y+fr.h/2; e.fx=fr.x;
+      if(Array.isArray(e.o)){ const a=fe.querySelector(`.opt[data-i="${e.o[0]}"]`), b=fe.querySelector(`.opt[data-i="${e.o[1]}"]`); if(a&&b){ const ra=rect(a), rb=rect(b); e.y1=(ra.y+rb.y+rb.h)/2; } }
+      else if(e.o!==undefined){ const oe=fe.querySelector(`.opt[data-i="${e.o}"]`); if(oe){ const r=rect(oe); e.y1=r.y+r.h/2; } }
+      e.x2=tr.x; e.tcy=tr.y+tr.h/2; e.kForce=false;
+    }
+    const dist = e=>Math.abs(e.tcy-e.y1);
+    for(const t in byTgt){
+      const T=byTgt[t].filter(e=>!e.skip); if(!T.length) continue;
+      const srcs=new Set(T.map(e=>e.f)); let order=T.slice();
+      if(srcs.size>1){
+        const above=T.filter(e=>e.y1<e.tcy).sort((a,b)=>(b.fx-a.fx)||(dist(b)-dist(a)));
+        const below=T.filter(e=>e.y1>=e.tcy).sort((a,b)=>(a.fx-b.fx)||(dist(a)-dist(b)));
+        order=above.concat(below);
+      }
+      order.forEach((e,j)=>{ e.y2=e.tcy+(j-(order.length-1)/2)*8; });
+      if(srcs.size>1){ // every arrow from one column into a shared screen shares that gap: nearer → inner channel
+        const byCol={}; order.forEach(e=>{ (byCol[e.fx]=byCol[e.fx]||[]).push(e); });
+        for(const c in byCol) byCol[c].sort((a,b)=>Math.abs(a.y2-a.y1)-Math.abs(b.y2-b.y1)).forEach((e,k)=>{ e.k=k; e.kForce=true; });
+      }
+    }
+    const span=e=>[Math.min(e.y1,e.y2),Math.max(e.y1,e.y2)], inside=(y,s)=>y>s[0]+1&&y<s[1]-1;
+    const crosses=(inner,outer)=>inside(outer.y1,span(inner))||inside(inner.y2,span(outer));
+    for(const f in bySrc){ const S=bySrc[f].filter(e=>!e.skip), sorted=[];
+      for(const e of S){ let i=0; while(i<sorted.length){ const o=sorted[i]; const eIn=!crosses(e,o), oIn=!crosses(o,e);
+          if(eIn&&!oIn) break; if(!eIn&&oIn){ i++; continue; } if(Math.abs(e.y2-e.y1)>Math.abs(o.y2-o.y1)) break; i++; }
+        sorted.splice(i,0,e); }
+      const used=new Set(sorted.filter(e=>e.kForce).map(e=>e.k)); let free=0;
+      sorted.forEach(e=>{ if(!e.kForce){ while(used.has(free)) free++; e.k=free; used.add(free); } e.nS=Math.max(S.length, Math.max(...sorted.map(x=>x.k))+1); }); }
+    const labels=[];
+    for(const e of E){ if(e.skip) continue;
+      const xk=e.x1+14+e.k*8; let d, mid=false, lx=e.x1+14+e.nS*8+4, ly=e.y1-4;
+      if(Math.abs(e.y1-e.y2)<2 && e.nS===1){ d=`M${e.x1} ${e.y1} H${e.x2}`; mid=true; lx=(e.x1+e.x2)/2; ly=e.y1-6; }
+      else d=`M${e.x1} ${e.y1} H${xk} V${e.y2} H${e.x2}`;
+      parts.push(`<path d="${d}" marker-end="url(#ar)"/>`);
+      if(e.l) labels.push({x:lx,y:ly,t:e.l,mid});
+    }
+    for(const L of labels){ const w=L.t.length*6+8, x=L.mid?L.x-w/2:L.x;
+      parts.push(`<rect class="lblbg" x="${x-2}" y="${L.y-9}" width="${w}" height="13" rx="3"/><text class="lbl" x="${x+2}" y="${L.y+1}">${esc(L.t)}</text>`); }
+    svg.innerHTML=parts.join('');
+  }
+
+  // ---- zoom / pan ----
+  const pct = document.getElementById('pct');
+  function apply(){ cv.style.transform=`scale(${scale})`;
+    spacer.style.width = CANVAS_W*scale+'px'; spacer.style.height = CANVAS_H*scale+'px'; pct.textContent=Math.round(scale*100)+'%'; }
+  const spacer = document.createElement('div'); spacer.style.position='relative'; spacer.style.overflow='hidden'; vp.appendChild(spacer); spacer.appendChild(cv);
+  cv.style.position='absolute'; cv.style.left='0'; cv.style.top='0';
+  function fit(){ scale = Math.max(.35, Math.min(1, (vp.clientWidth-8)/CANVAS_W)); apply(); }
+  document.querySelectorAll('.zoom button').forEach(b=> b.onclick=()=>{ const m=b.dataset.z; if(m==='fit') return fit(); scale = m==='in'? scale*1.2 : m==='out'? scale/1.2 : 1; scale=Math.min(2.5,Math.max(.3,scale)); apply(); });
+  vp.addEventListener('wheel', e=>{ if(!e.ctrlKey&&!e.metaKey) return; e.preventDefault(); scale=Math.min(2.5,Math.max(.3, scale*(e.deltaY<0?1.1:1/1.1))); apply(); }, {passive:false});
+  let drag=null;
+  vp.addEventListener('pointerdown', e=>{ if(e.button!==0) return; drag={x:e.clientX,y:e.clientY,l:vp.scrollLeft,t:vp.scrollTop}; vp.setPointerCapture(e.pointerId); vp.classList.add('drag'); });
+  vp.addEventListener('pointermove', e=>{ if(!drag) return; vp.scrollLeft=drag.l-(e.clientX-drag.x); vp.scrollTop=drag.t-(e.clientY-drag.y); });
+  ['pointerup','pointercancel'].forEach(ev=> vp.addEventListener(ev, ()=>{ drag=null; vp.classList.remove('drag'); }));
+
+  function boot(){ scale=1; apply(); draw(); fit(); }
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(boot); else boot();
+  window.addEventListener('resize', ()=>{ draw(); });
+})();
+</script>
+
+</body>
+</html>
